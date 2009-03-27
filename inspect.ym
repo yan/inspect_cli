@@ -1,0 +1,88 @@
+%{
+#include <stdio.h>
+#import "Type.h"
+#import "y.tab.h"
+
+int yyerror(char *msg)
+{
+	return fprintf(stderr, "err: %s", msg);
+}
+%}
+
+%union {
+	void *t; // Really Type*
+	char *str;
+	unsigned long long num;
+}
+
+%token <t> T_INT
+%token <t> T_CHAR
+%token <t> T_STRUCT	
+%token <str> T_ID
+%token <num> T_CONST
+%type <t> type_specifier declaration struct_declaration_list
+%type <t> struct_or_union struct_or_union_specifier
+%type <str> declarator
+
+%%
+
+begin
+	: declaration
+	{
+		NSLog(@"%@", (Type*)$1);
+	}
+	| begin declaration
+	;
+
+declaration
+	: type_specifier T_ID ';'
+	{
+		Type *n = (Type*) $1;
+		n.name = [NSString stringWithCString:$2];
+	}
+	| type_specifier T_ID '[' T_CONST ']' ';'
+	;
+
+struct_or_union_specifier
+	: struct_or_union T_ID '{' struct_declaration_list '}'
+	| struct_or_union '{' struct_declaration_list '}'
+	{
+		Type *n = (Type*)$1;
+		[n setChild:(Type*)$3];
+	}
+	| struct_or_union T_ID
+	;
+
+struct_declaration_list
+	: struct_declaration_list declaration 
+		{
+			/* fixme: this is redundnant */
+			Type *n = (Type*)$1;
+			[n setSibling:(Type*)$2];
+		}
+	| declaration
+	;
+
+struct_declaration
+	: type_specifier T_ID ';'
+		{
+			Type *node = (Type*)$1;
+			node.name = [NSString stringWithCString:$2];
+			NSLog(@"%@",node);
+		}
+	;
+
+type_specifier
+	: T_INT
+	| T_CHAR
+	| struct_or_union_specifier
+	;
+
+declarator
+	: T_ID
+	| T_ID '[' T_CONST ']'
+	;
+
+struct_or_union
+	: T_STRUCT
+	;
